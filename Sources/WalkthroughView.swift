@@ -11,138 +11,136 @@ import Foundation
 private let defaultDimColor = UIColor.black.withAlphaComponent(0.7).cgColor
 
 @objc public protocol WalkthroughViewDelegate {
-    @objc optional func willInteractWithView(_ view: UIView)
+  @objc optional func willInteractWithView(_ view: UIView)
 }
 
 @objc open class WalkthroughView: UIView {
+  open var availableViews: [ViewDescriptor] = []
     
-    open var availableViews: [ViewDescriptor] = []
-    
-    open var dimColor: CGColor = defaultDimColor {
-        didSet {
-            setNeedsDisplay()
-        }
+  open var dimColor: CGColor = defaultDimColor {
+    didSet {
+      setNeedsDisplay()
     }
+  }
     
-    open weak var delegate: WalkthroughViewDelegate?
+  open weak var delegate: WalkthroughViewDelegate?
     
-    lazy var overlayView: UIView = self.makeOverlay()
+  lazy var overlayView: UIView = self.makeOverlay()
     
-    override public init(frame: CGRect) {
-        super.init(frame: frame)
-        setup()
-    }
+  override public init(frame: CGRect) {
+    super.init(frame: frame)
+    setup()
+  }
     
-    required public init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
-        setup()
-    }
+  public required init?(coder aDecoder: NSCoder) {
+    super.init(coder: aDecoder)
+    setup()
+  }
     
-    deinit {
-        unregisterFromOrientationChanges()
-    }
+  deinit {
+    unregisterFromOrientationChanges()
+  }
     
-    override open func draw(_ rect: CGRect) {
-        super.draw(rect)
-        superview?.bringSubviewToFront(self)
+  override open func draw(_ rect: CGRect) {
+    super.draw(rect)
+    superview?.bringSubviewToFront(self)
         
-        removeOverlaySublayers()
+    removeOverlaySublayers()
         
-        let overlayPath = UIBezierPath(rect: bounds)
-        overlayPath.usesEvenOddFillRule = true
+    let overlayPath = UIBezierPath(rect: bounds)
+    overlayPath.usesEvenOddFillRule = true
         
-        for descriptor in availableViews {
-            let currentView = descriptor.view
-            let convertedFrame = descriptor.view.superview?.convert(currentView.frame, to: overlayView)
+    for descriptor in availableViews {
+      let currentView = descriptor.view
+      let convertedFrame = descriptor.view.superview?.convert(currentView.frame, to: overlayView)
             
-            if let cf = convertedFrame {
-                let highlightedFrame = cf.inset(by: descriptor.rectEdges)
-                let transparentPath =  UIBezierPath(roundedRect: highlightedFrame, cornerRadius: descriptor.cornerRadius)
-                overlayPath.append(transparentPath)
-            }
-        }
-        
-        let fillLayer = CAShapeLayer()
-        fillLayer.path = overlayPath.cgPath
-        fillLayer.fillRule = .evenOdd
-        fillLayer.fillColor = dimColor
-        
-        overlayView.layer.addSublayer(fillLayer)
+      if let cf = convertedFrame {
+        let highlightedFrame = cf.inset(by: descriptor.rectEdges)
+        let transparentPath = UIBezierPath(roundedRect: highlightedFrame, cornerRadius: descriptor.cornerRadius)
+        overlayPath.append(transparentPath)
+      }
     }
+        
+    let fillLayer = CAShapeLayer()
+    fillLayer.path = overlayPath.cgPath
+    fillLayer.fillRule = .evenOdd
+    fillLayer.fillColor = dimColor
+        
+    overlayView.layer.addSublayer(fillLayer)
+  }
     
-    override open func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        for descriptor in availableViews {
-            let currentView = descriptor.view
-            let convertedPoint = currentView.convert(point, from: self)
+  override open func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+    for descriptor in availableViews {
+      let currentView = descriptor.view
+      let convertedPoint = currentView.convert(point, from: self)
             
-            if currentView.point(inside: convertedPoint, with: event) {
-                delegate?.willInteractWithView?(currentView)
-                return currentView.hitTest(convertedPoint, with: event)
-            }
-        }
+      if currentView.point(inside: convertedPoint, with: event) {
+        delegate?.willInteractWithView?(currentView)
+        return currentView.hitTest(convertedPoint, with: event)
+      }
+    }
         
-        return super.hitTest(point, with: event)
-    }
+    return super.hitTest(point, with: event)
+  }
     
-    func setup() {
-        setupSubviews()
-        setupConstraints()
+  func setup() {
+    setupSubviews()
+    setupConstraints()
         
-        isOpaque = false
+    isOpaque = false
         
-        registerForOrientationChanges()
-    }
+    registerForOrientationChanges()
+  }
     
-    func setupSubviews() {
-        addSubview(overlayView)
-    }
+  func setupSubviews() {
+    addSubview(overlayView)
+  }
     
-    func setupConstraints() {
-        let views = ["overlayView": overlayView]
+  func setupConstraints() {
+    let views = ["overlayView": overlayView]
         
-        addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[overlayView]|", options: NSLayoutConstraint.FormatOptions(rawValue: 0), metrics: nil, views: views))
-        addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[overlayView]|", options: NSLayoutConstraint.FormatOptions(rawValue: 0), metrics: nil, views: views))
-    }
+    addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[overlayView]|", options: NSLayoutConstraint.FormatOptions(rawValue: 0), metrics: nil, views: views))
+    addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[overlayView]|", options: NSLayoutConstraint.FormatOptions(rawValue: 0), metrics: nil, views: views))
+  }
     
-    func makeOverlay() -> UIView {
-        let v = UIView()
-        v.translatesAutoresizingMaskIntoConstraints = false
+  func makeOverlay() -> UIView {
+    let v = UIView()
+    v.translatesAutoresizingMaskIntoConstraints = false
         
-        return v
-    }
+    return v
+  }
     
-    func registerForOrientationChanges() {
-        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
-        NotificationCenter.default.addObserver(self, selector: #selector(WalkthroughView.orientationChanged), name: UIDevice.orientationDidChangeNotification, object: nil)
-    }
+  func registerForOrientationChanges() {
+    UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+    NotificationCenter.default.addObserver(self, selector: #selector(WalkthroughView.orientationChanged), name: UIDevice.orientationDidChangeNotification, object: nil)
+  }
     
-    func unregisterFromOrientationChanges() {
-        UIDevice.current.endGeneratingDeviceOrientationNotifications()
-        NotificationCenter.default.removeObserver(self, name: UIDevice.orientationDidChangeNotification, object: nil)
-    }
+  func unregisterFromOrientationChanges() {
+    UIDevice.current.endGeneratingDeviceOrientationNotifications()
+    NotificationCenter.default.removeObserver(self, name: UIDevice.orientationDidChangeNotification, object: nil)
+  }
     
-    @objc func orientationChanged() {
-        setNeedsDisplay()
-    }
+  @objc func orientationChanged() {
+    setNeedsDisplay()
+  }
     
-    func removeOverlaySublayers() {
-        guard let overlaySublayers = overlayView.layer.sublayers else { return }
+  func removeOverlaySublayers() {
+    guard let overlaySublayers = overlayView.layer.sublayers else { return }
         
-        overlaySublayers.forEach { $0.removeFromSuperlayer() }
-    }
+    overlaySublayers.forEach { $0.removeFromSuperlayer() }
+  }
     
-    open func cutHolesForViews(_ views: [UIView]) {
-        let descriptors = views.map(ViewDescriptor.init)
-        cutHolesForViewDescriptors(descriptors)
-    }
+  open func cutHolesForViews(_ views: [UIView]) {
+    let descriptors = views.map(ViewDescriptor.init)
+    cutHolesForViewDescriptors(descriptors)
+  }
     
-    open func cutHolesForViewDescriptors(_ views: [ViewDescriptor]) {
-        availableViews = views
-        setNeedsDisplay()
-    }
+  open func cutHolesForViewDescriptors(_ views: [ViewDescriptor]) {
+    availableViews = views
+    setNeedsDisplay()
+  }
     
-    open func removeAllHoles() {
-        cutHolesForViewDescriptors([])
-    }
-    
+  open func removeAllHoles() {
+    cutHolesForViewDescriptors([])
+  }
 }
